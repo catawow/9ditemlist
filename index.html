@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Craft Planner – Resource/Create & NPC</title>
+<title>Craft Planner – Resource/Crate/Trade & NPC</title>
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>">
 <style>
@@ -38,7 +38,7 @@ button.primary{background:var(--accent);border:none;color:#00132a;font-weight:70
 .list{display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto;scroll-margin-top:90px}
 .item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid rgba(255,255,255,.06);background:#0e1526;border-radius:12px}
 .item-title{flex:1}
-.item-img{width:24px;height:24px;object-fit:contain;border-radius:4px}
+.item-img{width:40px;height:40px;object-fit:contain;border-radius:8px}
 .muted{color:var(--muted)}
 .tree{padding:16px;max-height:75vh;overflow:auto}
 .node>.label{display:inline-flex;align-items:center;gap:8px;background:#0e1526;border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:10px}
@@ -54,93 +54,450 @@ details{margin-left:18px}
 .overlay-content{background:var(--panel);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;max-width:520px;width:90%;max-height:80vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .overlay-content h3{margin-top:0;margin-bottom:12px;font-size:16px;text-align:center}
 .overlay-content .variant-btn{display:flex;flex-direction:column;gap:6px}
+.img-wrap{display:flex;justify-content:center}
+.img-wrap img{max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.08)}
 hr.sep{border:none;border-top:1px dashed rgba(255,255,255,.12);margin:6px 0}
 .empty{border:1px dashed rgba(255,255,255,.15);border-radius:12px;padding:10px;text-align:center;color:var(--muted)}
 @media (max-width: 960px){
   main{grid-template-columns:1fr}
+}
+/* NEW: accesibilitate, visually hidden */
+.sr-only{
+  position:absolute !important; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+/* NEW: clasa .btn reutilizabilă */
+.btn{background:#0c1220;color:var(--text);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.btn:focus{box-shadow:var(--focus)}
+#searchSuggestions{
+  position:absolute;
+  background:#0e1526;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  margin-top:4px;
+  padding:4px 0;
+  width:100%;
+  max-width:420px;
+  max-height:220px;
+  overflow:auto;
+  z-index:20;
+  display:none;
+}
+#searchSuggestions .suggest-item{ padding:8px 12px; cursor:pointer; }
+#searchSuggestions .suggest-item:hover,
+#searchSuggestions .suggest-item.active{ background:rgba(255,255,255,.1); }
+
+/* ===== Tooltip surse ===== */
+.tooltip{
+  position:fixed;
+  display:none;
+  z-index:120;
+  background:#0e1526;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:12px;
+  color:var(--text);
+  max-width:340px;
+  box-shadow:0 10px 25px rgba(0,0,0,.35);
+  pointer-events:none;
+  white-space:nowrap;
+}
+.tooltip .line{
+  display:flex;
+  gap:6px;
+  align-items:center;
+}
+.tooltip .line:not(:last-child){
+  margin-bottom:4px;
+}
+.has-tip{
+  text-decoration-style:dotted;
+  text-decoration-color:rgba(255,255,255,.25);
 }
 </style>
 </head>
 <body>
 <header>
   <div class="topbar">
-    <h1 aria-label="Titlu aplicație">Arbore de Crafting</h1>
-    <span class="badge" aria-label="Mod activ">Mod Resource / Create • Map • NPC</span>
+    <h1 id="appTitle" aria-label="Titlu aplicație" data-i18n="appTitle">Arbore de Crafting</h1>
+    <span class="badge" aria-label="Moduri" data-i18n="modeBadge">Mod Resource / Crate / Trade • Map • NPC</span>
+
+    <!-- Selector de limbă -->
+    <select id="langSelect" aria-label="Language">
+      <option value="ro">RO</option>
+      <option value="en">EN</option>
+    </select>
+
     <div style="flex:1"></div>
-    <button id="openList" class="btn small" type="button" title="Deschide lista">Listă <span id="listCount" class="countBadge" aria-live="polite" tabindex="0" title="Deschide lista">0</span></button>
-    <button id="copyLink" class="btn" type="button" title="Copiază link cu starea curentă">Copiază link</button>
-    <button id="resetState" class="btn" type="button">Reset</button>
+    <button id="openList" class="btn small" type="button" data-i18n-title="btn_open_list_title">
+      <span data-i18n="btnList">Listă</span>
+      <span id="listCount" class="countBadge" aria-live="polite" tabindex="0" data-i18n-title="btn_open_list_title" title="Deschide lista">0</span>
+    </button>
+    <button id="copyLink" class="btn" type="button" data-i18n="btnCopyLink" data-i18n-title="btn_copy_link_title" title="Copiază link cu starea curentă">Copiază link</button>
+    <button id="resetState" class="btn" type="button" data-i18n="btnReset">Reset</button>
   </div>
-  <label class="sr-only" for="searchGlobal">Căutare globală</label>
-  <input id="searchGlobal" placeholder="Tastează un nume de item și apasă Enter… (ex: Ultimate Tablet)" />
+  <label class="sr-only" for="searchGlobal" data-i18n="searchGlobalLabel">Căutare globală</label>
+  <div style="position:relative;max-width:420px;width:100%;">
+    <input id="searchGlobal" data-i18n-placeholder="searchGlobalPlaceholder" placeholder="Tastează un nume de item și apasă Enter… (ex: Ultimate Tablet)" />
+    <div id="searchSuggestions"></div>
+  </div>
 </header>
 
 <main>
 <section class="card section" aria-label="Filtre și listă NPC">
   <div class="tabs" id="tabs" role="tablist"></div>
   <div class="col">
-    <label class="title" for="mapSelect">Map</label>
+    <label class="title" for="mapSelect" data-i18n="labelMap">Map</label>
     <select id="mapSelect" aria-label="Alege harta"></select>
-    <label class="title" for="npcSelect">NPC</label>
+    <label class="title" for="npcSelect" data-i18n="labelNpc">NPC</label>
     <select id="npcSelect" aria-label="Alege NPC"></select>
     <div class="row">
-      <input id="searchInput" placeholder="Caută item la NPC..." style="flex:1" aria-label="Caută item la NPC" />
+      <input id="searchInput" data-i18n-placeholder="searchNpcPlaceholder" placeholder="Caută item la NPC..." style="flex:1" aria-label="Caută item la NPC" />
       <input id="qtyInput" type="number" value="1" min="1" step="1" style="width:100px" aria-label="Cantitate" />
     </div>
-    <div class="title" style="margin-top:6px">Iteme oferite de NPC</div>
+    <div class="title" style="margin-top:6px" data-i18n="npcItemsTitle">Iteme oferite de NPC</div>
     <div id="npcItems" class="list" tabindex="-1"></div>
   </div>
 </section>
 
 <section class="card" aria-label="Arbore rețetă">
   <div class="toolbar" style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.06)">
-    <h2 style="margin:0;font-size:14px;font-weight:600">Rețetă</h2>
+    <h2 style="margin:0;font-size:14px;font-weight:600" data-i18n="recipeHeaderTitle">Rețetă</h2>
     <span class="pill" id="currentItemName">—</span>
     <div style="flex:1"></div>
-    <button id="expandAll" type="button">Extinde tot</button>
-    <button id="collapseAll" type="button">Restrânge tot</button>
-    <button id="addToList" type="button" title="Adaugă itemul curent în listă">Adaugă la listă</button>
-    <button id="exportJson" type="button" title="Copiază structura arborelui în format JSON">Export JSON</button>
+    <button id="expandAll" type="button" data-i18n="btnExpandAll">Extinde tot</button>
+    <button id="collapseAll" type="button" data-i18n="btnCollapseAll">Restrânge tot</button>
+    <button id="addToList" type="button" data-i18n="btnAddToList" data-i18n-title="btn_add_to_list_title" title="Adaugă itemul curent în listă">Adaugă la listă</button>
+    <button id="exportJson" type="button" data-i18n="btnExportJson" data-i18n-title="btn_export_tree_title" title="Copiază structura arborelui în format JSON">Export JSON</button>
   </div>
-  <div class="tree" id="tree"><div class="empty">Alege un item din stânga sau caută mai sus</div></div>
+  <div class="tree" id="tree"><div class="empty" data-i18n="treeEmpty">Alege un item din stânga sau caută mai sus</div></div>
   <div class="footer">
-    <div class="muted">Nodurile fără rețetă sunt materiale de bază.</div>
+    <div class="muted" data-i18n="footerNote">Nodurile fără rețetă sunt materiale de bază.</div>
     <div id="meta" class="pills" aria-live="polite"></div>
   </div>
 </section>
 </main>
 
-<!-- Overlay pentru alegerea rețetei -->
+<!-- Overlay: Alege rețeta -->
 <div id="variantOverlay" class="overlay-panel" aria-modal="true" role="dialog" aria-labelledby="variantTitle">
   <div class="overlay-content">
-    <h3 id="variantTitle">Alege rețeta</h3>
+    <h3 id="variantTitle" data-i18n="overlayVariantTitle">Alege rețeta</h3>
     <div id="variantList" class="variant-btn"></div>
     <div style="text-align:center;margin-top:12px">
-      <button id="closeVariantOverlay" class="btn" type="button">Închide</button>
+      <button id="closeVariantOverlay" class="btn" type="button" data-i18n="btnClose">Închide</button>
     </div>
   </div>
 </div>
 
-<!-- Overlay pentru LISTĂ -->
+<!-- Overlay: Lista -->
 <div id="listOverlay" class="overlay-panel" aria-modal="true" role="dialog" aria-labelledby="listTitle">
   <div class="overlay-content">
-    <h3 id="listTitle">Lista mea</h3>
+    <h3 id="listTitle" data-i18n="overlayListTitle">Lista mea</h3>
     <div id="listBody" class="list" style="max-height:50vh"></div>
     <div style="display:flex; gap:8px; justify-content:center; margin-top:12px">
-      <button id="exportList" class="btn" type="button" title="Copiază lista ca JSON">Exportă JSON</button>
-      <button id="clearList" class="btn" type="button" title="Golește lista">Golește</button>
-      <button id="closeListOverlay" class="btn" type="button">Închide</button>
+      <button id="exportList" class="btn" type="button" data-i18n="btnExportList" data-i18n-title="btn_export_list_title" title="Copiază lista ca JSON">Exportă JSON</button>
+      <button id="clearList" class="btn" type="button" data-i18n="btnClearList" data-i18n-title="btn_clear_list_title" title="Golește lista">Golește</button>
+      <button id="closeListOverlay" class="btn" type="button" data-i18n="btnClose">Închide</button>
     </div>
   </div>
 </div>
 
+<!-- Overlay: Utilizări item -->
+<div id="usesOverlay" class="overlay-panel" aria-modal="true" role="dialog" aria-labelledby="usesTitle">
+  <div class="overlay-content">
+    <h3 id="usesTitle" data-i18n="overlayUsesTitle">Utilizări pentru item</h3>
+    <div id="usesBody" class="list" style="max-height:50vh"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button id="closeUsesOverlay" class="btn" type="button" data-i18n="btnClose">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay: Imagine detalii -->
+<div id="imageOverlay" class="overlay-panel" aria-modal="true" role="dialog" aria-labelledby="imageTitle">
+  <div class="overlay-content">
+    <h3 id="imageTitle">Detalii item</h3>
+    <div class="img-wrap"><img id="imageOverlayImg" alt="Detalii item"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button id="closeImageOverlay" class="btn" type="button" data-i18n="btnClose">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- 1) Încarcă datele înainte de logica aplicației -->
+<script src="data.js"></script>
+
+<!-- 2) Script principal -->
 <script>
 /* ===== Utilitare ===== */
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const fmtQty=n=>new Intl.NumberFormat('ro-RO').format(n);
-const copy = async (t)=>{ try{ await navigator.clipboard.writeText(t); toast('Copiat în clipboard!'); }catch(e){ toast('Nu s-a putut copia.'); } };
+
+/* ===== I18N (RO / EN) ===== */
+let currentLang = localStorage.getItem('lang') || 'ro';
+
+const I18N = {
+  ro: {
+    appTitle: 'Arbore de Crafting',
+    modeBadge: 'Mod Resource / Crate / Trade • Map • NPC',
+    btnList: 'Listă',
+    btnCopyLink: 'Copiază link',
+    btnReset: 'Reset',
+    searchGlobalLabel: 'Căutare globală',
+    searchGlobalPlaceholder: 'Tastează un nume de item și apasă Enter… (ex: Ultimate Tablet)',
+    labelMap: 'Map',
+    labelNpc: 'NPC',
+    searchNpcPlaceholder: 'Caută item la NPC...',
+    npcItemsTitle: 'Iteme oferite de NPC',
+    recipeHeaderTitle: 'Rețetă',
+    btnExpandAll: 'Extinde tot',
+    btnCollapseAll: 'Restrânge tot',
+    btnAddToList: 'Adaugă la listă',
+    btnExportJson: 'Export JSON',
+    treeEmpty: 'Alege un item din stânga sau caută mai sus',
+    footerNote: 'Nodurile fără rețetă sunt materiale de bază.',
+    overlayVariantTitle: 'Alege rețeta',
+    overlayVariantTitleFor: 'Alege rețeta pentru "{item}"',
+    overlayListTitle: 'Lista mea',
+    overlayUsesTitle: 'Utilizări pentru item',
+    btnClose: 'Închide',
+    btnExportList: 'Exportă JSON',
+    btnClearList: 'Golește',
+    copy_success: 'Copiat în clipboard!',
+    copy_error: 'Nu s-a putut copia.',
+    search_not_found: 'Itemul nu a fost găsit în DATA.',
+    no_items_current_selection: 'Niciun item pentru selecția curentă.',
+    select_item_first: 'Selectează întâi un item.',
+    added_to_list: 'Adăugat în listă',
+    list_empty: 'Lista este goală.',
+    btn_see_recipe: 'Vezi rețeta',
+    btn_uses: 'Ce pot face?',
+    btn_add: 'Adaugă',
+    uses_title: 'Ce poți face din "{name}"',
+    uses_none: 'Acest item nu este folosit ca ingredient în nicio rețetă.',
+    uses_consumes: 'Consumă: ×{qty} din {name}',
+    btn_choose: 'Alege',
+    btn_delete: 'Șterge',
+    toast_selected_from_list: 'Selectat din listă',
+    list_qty_label: 'Cantitate: ×{qty}',
+    list_btn_minus_title: 'Scade 1',
+    list_btn_plus_title: 'Adaugă 1',
+    list_btn_choose_title: 'Arată rețeta pentru acest item',
+    list_btn_delete_title: 'Șterge din listă',
+    badge_base_material: 'Material de bază (fără rețetă)',
+    btn_open_list_title: 'Deschide lista',
+    btn_copy_link_title: 'Copiază link cu starea curentă',
+    btn_add_to_list_title: 'Adaugă itemul curent în listă',
+    btn_export_tree_title: 'Copiază structura arborelui în format JSON',
+    btn_export_list_title: 'Copiază lista ca JSON',
+    btn_clear_list_title: 'Golește lista',
+    selected_variant: 'Variantă selectată',
+    meta_nodes: 'Noduri'
+  },
+  en: {
+    appTitle: 'Crafting Tree',
+    modeBadge: 'Mode Resource / Crate / Trade • Map • NPC',
+    btnList: 'List',
+    btnCopyLink: 'Copy link',
+    btnReset: 'Reset',
+    searchGlobalLabel: 'Global search',
+    searchGlobalPlaceholder: 'Type an item name and press Enter… (e.g. Ultimate Tablet)',
+    labelMap: 'Map',
+    labelNpc: 'NPC',
+    searchNpcPlaceholder: 'Search item at NPC...',
+    npcItemsTitle: 'Items offered by NPC',
+    recipeHeaderTitle: 'Recipe',
+    btnExpandAll: 'Expand all',
+    btnCollapseAll: 'Collapse all',
+    btnAddToList: 'Add to list',
+    btnExportJson: 'Export JSON',
+    treeEmpty: 'Pick an item from the left or search above',
+    footerNote: 'Nodes without recipes are base materials.',
+    overlayVariantTitle: 'Choose recipe',
+    overlayVariantTitleFor: 'Choose recipe for "{item}"',
+    overlayListTitle: 'My list',
+    overlayUsesTitle: 'Item uses',
+    btnClose: 'Close',
+    btnExportList: 'Export JSON',
+    btnClearList: 'Clear',
+    copy_success: 'Copied to clipboard!',
+    copy_error: 'Could not copy.',
+    search_not_found: 'Item was not found in DATA.',
+    no_items_current_selection: 'No items for the current selection.',
+    select_item_first: 'Select an item first.',
+    added_to_list: 'Added to list',
+    list_empty: 'The list is empty.',
+    btn_see_recipe: 'Show recipe',
+    btn_uses: 'What can I craft?',
+    btn_add: 'Add',
+    uses_title: 'What you can craft from "{name}"',
+    uses_none: 'This item is not used as an ingredient in any recipe.',
+    uses_consumes: 'Consumes: ×{qty} of {name}',
+    btn_choose: 'Choose',
+    btn_delete: 'Delete',
+    toast_selected_from_list: 'Selected from list',
+    list_qty_label: 'Quantity: ×{qty}',
+    list_btn_minus_title: 'Decrease by 1',
+    list_btn_plus_title: 'Increase by 1',
+    list_btn_choose_title: 'Show recipe for this item',
+    list_btn_delete_title: 'Remove from list',
+    badge_base_material: 'Base material (no recipe)',
+    btn_open_list_title: 'Open list',
+    btn_copy_link_title: 'Copy link with current state',
+    btn_add_to_list_title: 'Add current item to list',
+    btn_export_tree_title: 'Copy tree structure as JSON',
+    btn_export_list_title: 'Copy list as JSON',
+    btn_clear_list_title: 'Clear list',
+    selected_variant: 'Selected variant',
+    meta_nodes: 'Nodes'
+  }
+};
+
+function tr(key){
+  const lang = (currentLang in I18N) ? currentLang : 'ro';
+  return I18N[lang][key] || I18N.ro[key] || key;
+}
+function trf(key, params){
+  let s = tr(key);
+  if (!params) return s;
+  for (const [k,v] of Object.entries(params)){
+    s = s.replace(new RegExp(`\\{${k}\\}`,'g'), v);
+  }
+  return s;
+}
+
+function applyLanguage(lang){
+  if (!I18N[lang]) lang = 'ro';
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  localStorage.setItem('lang', lang);
+
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.dataset.i18n;
+    const txt = tr(key);
+    if (txt) el.textContent = txt;
+  });
+
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key = el.dataset.i18nPlaceholder;
+    const txt = tr(key);
+    if (txt) el.placeholder = txt;
+  });
+
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>{
+    const key = el.dataset.i18nTitle;
+    const txt = tr(key);
+    if (txt) el.title = txt;
+  });
+
+  // re-randăm listele, ca să se actualizeze textele de pe butoane etc.
+  renderNpcItems();
+  renderListPanel();
+  if (state.currentItem) showRecipe(state.currentItem);
+}
+
+const copy = async (t)=>{
+  try{
+    await navigator.clipboard.writeText(t);
+    toast(tr('copy_success'));
+  }catch(e){
+    toast(tr('copy_error'));
+  }
+};
 const debounce=(fn,ms=200)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+
+/* ==== Imagini ==== */
+const PLACEHOLDER_IMG = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><rect width='24' height='24' rx='4' fill='%231a2435'/><text x='12' y='17' text-anchor='middle' font-size='12' fill='%239fb0c0'>🎒</text></svg>";
+const escapeAttr = (s)=> String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function getImageForItem(name){
+  const rec = DATA[name];
+  if(!rec) return PLACEHOLDER_IMG;
+  if(rec.image) return rec.image;
+  const idx = state.selectedVariant[name] ?? 0;
+  const v = rec.variants?.[idx] || rec.variants?.[0];
+  if(v?.image) return v.image;
+  return PLACEHOLDER_IMG;
+}
+function getDetailImageForItem(name){
+  const rec = DATA[name];
+  return rec?.detailImage || getImageForItem(name);
+}
+
+/* ===== Tooltip surse ===== */
+function sourceLines(name){
+  const rec = DATA[name];
+  if(!rec?.variants?.length) return [];
+  return rec.variants.map(v=>{
+    const s = v.success != null ? ` — ${v.success}%` : '';
+    return `${v.source.tab} • ${v.source.map} • ${v.source.npc}${s}`;
+  });
+}
+function attachTooltip(el, name){
+  if(!el) return;
+  const lines = sourceLines(name);
+  if(!lines.length) return;
+  el.classList.add('has-tip');
+  el.setAttribute('data-tip', lines.join('\n'));
+  el.setAttribute('title', lines.join(' | ')); // fallback nativ
+}
+let _tipEl = null;
+let _tipVisible = false;
+function ensureTip(){
+  if(_tipEl) return _tipEl;
+  _tipEl = document.createElement('div');
+  _tipEl.className = 'tooltip';
+  document.body.appendChild(_tipEl);
+  return _tipEl;
+}
+function positionTip(x,y){
+  const el = _tipEl;
+  if(!el) return;
+  const pad = 12;
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const maxX = window.scrollX + window.innerWidth - w - pad;
+  const maxY = window.scrollY + window.innerHeight - h - pad;
+  const nx = Math.min(x + pad, maxX);
+  const ny = Math.min(y + pad, maxY);
+  el.style.left = nx + 'px';
+  el.style.top = ny + 'px';
+}
+function showTip(text,x,y){
+  const el = ensureTip();
+  el.innerHTML = '';
+  text.split('\n').forEach(t=>{
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.textContent = t;
+    el.appendChild(d);
+  });
+  el.style.display = 'block';
+  _tipVisible = true;
+  positionTip(x,y);
+}
+function hideTip(){
+  if(_tipEl) _tipEl.style.display = 'none';
+  _tipVisible = false;
+}
+
+document.addEventListener('mouseover', (e)=>{
+  const t = e.target.closest('.has-tip');
+  if(!t) return;
+  const txt = t.getAttribute('data-tip');
+  if(!txt) return;
+  showTip(txt, e.clientX + window.scrollX, e.clientY + window.scrollY);
+});
+document.addEventListener('mousemove', (e)=>{
+  if(!_tipVisible) return;
+  positionTip(e.clientX + window.scrollX, e.clientY + window.scrollY);
+});
+document.addEventListener('mouseout', (e)=>{
+  const from = e.target && e.target.closest ? e.target.closest('.has-tip') : null;
+  const to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('.has-tip') : null;
+  if(from && from !== to) hideTip();
+});
 
 /* Mini toast */
 const toast=(msg)=>{
@@ -150,26 +507,7 @@ const toast=(msg)=>{
   setTimeout(()=>{ el.style.opacity='0'; }, 1600);
 };
 
-/* ===== Date de exemplu ===== */
-const DATA={
-  "Infinite Vaisravana Costume (F)":{
-    variants:[
-      {source:{tab:'Resource',map:'Loulan',npc:'Infinite Helper Lei Woodo'},success:100,ingredients:{"Infinite Dark Soul Costume (F)":1,"Celestial Yellow Dragon of Darkness Clothes (F)":1, "United Spirits Bead":2, "Ultimate Tablet":3, "Wave Healing Stone":10, "Infinite Spirit (High)":100}},
-    ]
-  },
-  "Infinite Dark Soul Costume (F)":{
-    variants:[
-      {source:{tab:'Create',map:'Loulan',npc:'Infinite Master Man Sangja'},success:5,ingredients:{"Eternal Flame Yellow Dragon Clothes (F)":1,"Wave Healing Stone":3, "Infinite Stone Shard":100, "Infinite Spirit (Mid)":25, "PVE Basic Points":300, "PVE Gold Points":200}},
-    ]
-  },
-  "Celestial Yellow Dragon of Darkness Clothes (F)":{
-    variants:[
-      {source:{tab:'Create',map:'Loulan',npc:'Infinite Master Man Sangja'},success:5,ingredients:{"Eternal Flame Yellow Dragon Clothes (F)":1,"Wave Healing Stone":3, "Infinite Stone Shard":100, "Infinite Spirit (Mid)":25, "PVE Basic Points":300, "PVE Gold Points":200}},
-    ]
-  },
-};
-
-/* ===== Indexare (Tab → Map → NPC → Items) ===== */
+/* ===== Indexare ===== */
 function buildIndex(){
   const idx = [];
   for (const [item,rec] of Object.entries(DATA)){
@@ -180,7 +518,29 @@ function buildIndex(){
   return idx;
 }
 const INDEX = buildIndex();
-const TABS = Array.from(new Set(INDEX.map(r=>r.tab))).sort();
+
+/* ===== Index utilizări (unde e folosit ca ingredient) ===== */
+function buildUsesIndex(){
+  const uses = {};
+  for (const [result, rec] of Object.entries(DATA)){
+    (rec.variants || []).forEach(v => {
+      for (const [ing, qty] of Object.entries(v.ingredients || {})){
+        if (!uses[ing]) uses[ing] = [];
+        uses[ing].push({
+          result,
+          qty,
+          source: v.source,
+          success: v.success ?? null
+        });
+      }
+    });
+  }
+  return uses;
+}
+const USES = buildUsesIndex();
+
+/* >>> TABS actualizate: + Base pentru materiale de bază */
+const TABS = ['Resource','Crate','Trade','Base'];
 
 /* ===== Stare ===== */
 let state={
@@ -203,7 +563,7 @@ const saveState=(patch={})=>{
   localStorage.setItem('craft_state_v3', JSON.stringify(state));
 };
 
-/* ===== Helpers pentru opțiuni ===== */
+/* ===== Helpers ===== */
 function mapsForTab(tab){
   return Array.from(new Set(INDEX.filter(r=>r.tab===tab).map(r=>r.map))).sort();
 }
@@ -211,7 +571,13 @@ function npcsFor(tab,map){
   return Array.from(new Set(INDEX.filter(r=>r.tab===tab && r.map===map).map(r=>r.npc))).sort();
 }
 function itemsFor(tab,map,npc){
-  return Array.from(new Set(INDEX.filter(r=>r.tab===tab && r.map===map && r.npc===npc).map(r=>r.item))).sort();
+  return Array.from(new Set(
+    INDEX
+      .filter(r => r.tab === tab && r.map === map && r.npc === npc)
+      .map(r => r.item)
+  ))
+  .filter(name => !DATA[name]?.hidden)
+  .sort();
 }
 
 /* ===== Arbore rețete ===== */
@@ -235,19 +601,40 @@ function aggregateBaseMaterials(node,totals=new Map()){
   (node.children||[]).forEach(ch=>aggregateBaseMaterials(ch,totals));
   return totals;
 }
-
 function escapeHtml(s){
-  return s.replace(/[&<>"]+/g, ch=>({"&":"&amp;","<":"&lt;",
-                                     ">":"&gt;","\"":"&quot;"}[ch]));
+  return String(s).replace(/[&<>"']/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
 }
 
+/* ===== Overlay imagine detalii ===== */
+const imageOverlay = $('#imageOverlay');
+const imageOverlayImg = $('#imageOverlayImg');
+$('#closeImageOverlay').onclick = ()=> imageOverlay.classList.remove('open');
+imageOverlay.addEventListener('click', (e)=>{ if(e.target===imageOverlay) imageOverlay.classList.remove('open'); });
+function openImageOverlay(itemName){
+  const src = getDetailImageForItem(itemName);
+  imageOverlayImg.src = src;
+  imageOverlayImg.alt = itemName + ' – detalii';
+  $('#imageTitle').textContent = itemName;
+  imageOverlay.classList.add('open');
+  setTimeout(()=>$('#closeImageOverlay').focus(),0);
+}
+
+/* ===== Render tree ===== */
 function renderTree(node,parent){
   const details=document.createElement('details'); details.open=true;
   const summary=document.createElement('summary'); summary.className='node';
   const label=document.createElement('span'); label.className='label';
 
   const varBtn = node.variantCount>1 ? `<button class="variantBtn" data-item="${escapeHtml(node.label)}" title="Schimbă rețeta" style="margin-left:4px" type="button">🔄</button>` : '';
-  label.innerHTML = `<strong>${escapeHtml(node.label)}</strong> × ${fmtQty(node.qty)} ${(node.success!=null?`<span class="chance">(${node.success}% succes)</span>`:'')}${varBtn}`;
+  const iconHtml = `<img loading="lazy" class="item-img openDetail" data-item="${escapeAttr(node.label)}" style="cursor:zoom-in" src="${escapeAttr(getImageForItem(node.label))}" alt="${escapeAttr(node.label)}">`;
+  label.innerHTML = `${iconHtml} <strong>${escapeHtml(node.label)}</strong> × ${fmtQty(node.qty)} ${(node.success!=null?`<span class="chance">(${node.success}%)</span>`:'')}${varBtn}`;
+
+  const lblImg = label.querySelector('img');
+  const lblStrong = label.querySelector('strong');
+  attachTooltip(lblImg, node.label);
+  attachTooltip(lblStrong, node.label);
+  attachTooltip(label, node.label);
+
   summary.appendChild(label);
   details.appendChild(summary);
 
@@ -260,14 +647,16 @@ function renderTree(node,parent){
     const info = document.createElement('div');
     info.className='muted';
     info.style.cssText='margin-left:32px;font-size:12px';
-    info.textContent = `Variantă selectată: ${node.source.tab} • ${node.source.map} • ${node.source.npc}`;
+    info.textContent = `${tr('selected_variant')}: ${node.source.tab} • ${node.source.map} • ${node.source.npc}`;
     details.appendChild(info);
   }
 }
+
+/* ===== Meta & afișare ===== */
 function renderMeta(root){
   const meta=$('#meta'); meta.innerHTML='';
   const total=countNodes(root);
-  const pill=document.createElement('span'); pill.className='pill'; pill.textContent=`Noduri: ${total}`; meta.appendChild(pill);
+  const pill=document.createElement('span'); pill.className='pill'; pill.textContent=`${tr('meta_nodes')}: ${total}`; meta.appendChild(pill);
   const base=aggregateBaseMaterials(root);
   base.forEach((v,k)=>{ const p=document.createElement('span'); p.className='pill'; p.textContent=`${k}: ×${fmtQty(v)}`; meta.appendChild(p); });
 }
@@ -289,12 +678,12 @@ function openVariantPanel(item){
   const rec=DATA[item];
   if(!rec || !(rec.variants?.length>1)) return;
   listDiv.innerHTML='';
-  $('#variantTitle').textContent=`Alege rețeta pentru "${item}"`;
+  $('#variantTitle').textContent = trf('overlayVariantTitleFor', {item});
   rec.variants.forEach((v,i)=>{
     const b=document.createElement('button');
     b.className='primary';
     b.type='button';
-    b.textContent=`${v.source.tab} • ${v.source.map} • ${v.source.npc} (${v.success ?? '?'}% succes)`;
+    b.textContent=`${v.source.tab} • ${v.source.map} • ${v.source.npc} (${v.success ?? '?' }%)`;
     b.onclick=()=>{
       state.selectedVariant[item]=i;
       saveState({});
@@ -304,20 +693,96 @@ function openVariantPanel(item){
     listDiv.appendChild(b);
   });
   overlay.classList.add('open');
-  // focus trap basic
   setTimeout(()=>$('#closeVariantOverlay').focus(),0);
 }
 function closeOverlay(){ overlay.classList.remove('open'); }
+const variantOverlayEl = $('#variantOverlay');
+variantOverlayEl.addEventListener('click', (e)=>{ if(e.target===variantOverlayEl) closeOverlay(); });
 
-/* Închidere overlay la ESC / click în afara conținutului */
-document.addEventListener('keydown', (e)=>{
-  if(e.key==='Escape' && overlay.classList.contains('open')) closeOverlay();
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) closeOverlay(); });
+
+/* ===== Overlay: utilizări item ===== */
+function renderUsesForItem(name){
+  const body = $('#usesBody');
+  const arr = USES[name] || [];
+  $('#usesTitle').textContent = trf('uses_title', {name});
+  body.innerHTML = '';
+
+  if (!arr.length){
+    body.innerHTML = `<div class="empty">${tr('uses_none')}</div>`;
+    return;
+  }
+
+  arr.forEach(u => {
+    const row = document.createElement('div');
+    row.className = 'item';
+
+    const img = document.createElement('img');
+    img.className = 'item-img openDetail';
+    img.dataset.item = u.result;
+    img.style.cursor = 'zoom-in';
+    img.alt = u.result;
+    img.src = getImageForItem(u.result);
+    img.loading = 'lazy';
+
+    const title = document.createElement('div');
+    title.className = 'item-title';
+    title.innerHTML =
+      `<strong>${u.result}</strong>` +
+      `<div class="muted">${trf('uses_consumes', {qty: fmtQty(u.qty), name})}</div>` +
+      `<div class="muted">${u.source.tab} • ${u.source.map} • ${u.source.npc}` +
+      (u.success != null ? ` • ${u.success}%` : '') +
+      `</div>`;
+
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '6px';
+
+    const seeBtn = document.createElement('button');
+    seeBtn.type = 'button';
+    seeBtn.className = 'primary';
+    seeBtn.textContent = tr('btn_see_recipe');
+    seeBtn.title = tr('btn_see_recipe');
+    seeBtn.onclick = () => {
+      closeUsesPanel();
+      $('#qtyInput').value = 1;
+      showRecipe(u.result);
+    };
+
+    controls.appendChild(seeBtn);
+
+    row.appendChild(img);
+    row.appendChild(title);
+    row.appendChild(controls);
+    body.appendChild(row);
+  });
+}
+
+function openUsesPanel(name){
+  renderUsesForItem(name);
+  $('#usesOverlay').classList.add('open');
+  setTimeout(() => $('#closeUsesOverlay').focus(), 0);
+}
+function closeUsesPanel(){
+  $('#usesOverlay').classList.remove('open');
+}
+
+$('#closeUsesOverlay').onclick = () => closeUsesPanel();
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#usesOverlay').classList.contains('open')) closeUsesPanel();
 });
-overlay.addEventListener('click', (e)=>{
-  if(e.target===overlay) closeOverlay();
+$('#usesOverlay').addEventListener('click', e => {
+  if (e.target === $('#usesOverlay')) closeUsesPanel();
 });
 
-/* ===== UI stânga: Tabs / Map / NPC / Lista Items ===== */
+$('#usesBody').addEventListener('click', (e) => {
+  const img = e.target.closest('.openDetail');
+  if (!img) return;
+  openImageOverlay(img.dataset.item);
+});
+
+
+/* ===== UI stânga ===== */
 function renderTabs(){
   const c = $('#tabs'); c.innerHTML='';
   TABS.forEach(tab=>{
@@ -329,7 +794,6 @@ function renderTabs(){
     b.textContent=tab;
     b.onclick=()=>{
       state.currentTab=tab;
-      // schimb tab → reset map/npc
       const maps = mapsForTab(tab);
       state.map = maps[0] || '';
       const npcs = npcsFor(tab, state.map);
@@ -340,8 +804,24 @@ function renderTabs(){
     c.appendChild(b);
   });
 }
+$('#tabs').addEventListener('keydown', (e)=>{
+  const tabs = $$('#tabs .tab');
+  const i = tabs.findIndex(t=>t === document.activeElement);
+  if(i<0) return;
+  if(e.key === 'ArrowRight'){ e.preventDefault(); tabs[(i+1)%tabs.length].focus(); }
+  if(e.key === 'ArrowLeft'){ e.preventDefault(); tabs[(i-1+tabs.length)%tabs.length].focus(); }
+});
+
 function renderMap(){
   const sel = $('#mapSelect'); sel.innerHTML='';
+  if (state.currentTab === 'Base') {
+    const o=document.createElement('option');
+    o.value=''; o.textContent='—';
+    sel.appendChild(o);
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
   const maps = mapsForTab(state.currentTab);
   maps.forEach(m=>{
     const o=document.createElement('option'); o.value=m; o.textContent=m;
@@ -351,6 +831,14 @@ function renderMap(){
 }
 function renderNpc(){
   const sel = $('#npcSelect'); sel.innerHTML='';
+  if (state.currentTab === 'Base') {
+    const o=document.createElement('option');
+    o.value=''; o.textContent='—';
+    sel.appendChild(o);
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
   const npcs = npcsFor(state.currentTab, state.map);
   npcs.forEach(n=>{
     const o=document.createElement('option'); o.value=n; o.textContent=n;
@@ -361,13 +849,23 @@ function renderNpc(){
 function renderNpcItems(){
   const box = $('#npcItems'); box.innerHTML='';
   const search = ($('#searchInput').value||'').trim().toLowerCase();
-  const items = itemsFor(state.currentTab, state.map, state.npc)
-    .filter(it => it.toLowerCase().includes(search));
+  let items;
+
+  if (state.currentTab === 'Base') {
+    items = Object.entries(DATA)
+      .filter(([name, rec]) => !rec.hidden && (!rec.variants || !rec.variants.length))
+      .map(([name]) => name)
+      .filter(it => it.toLowerCase().includes(search))
+      .sort();
+  } else {
+    items = itemsFor(state.currentTab, state.map, state.npc)
+      .filter(it => it.toLowerCase().includes(search));
+  }
 
   updateListCount();
 
   if(items.length===0){
-    box.innerHTML = `<div class="empty">Niciun item pentru selecția curentă.</div>`;
+    box.innerHTML = `<div class="empty">${tr('no_items_current_selection')}</div>`;
     return;
   }
   items.forEach(it=>{
@@ -375,9 +873,12 @@ function renderNpcItems(){
     row.className='item';
 
     const img=document.createElement('img');
-    img.className='item-img';
-    img.alt='Pictogramă item';
-    img.src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><rect width='24' height='24' rx='4' fill='%231a2435'/><text x='12' y='17' text-anchor='middle' font-size='12' fill='%239fb0c0'>🎒</text></svg>";
+    img.className='item-img openDetail';
+    img.dataset.item = it;
+    img.style.cursor = 'zoom-in';
+    img.alt = it;
+    img.src = getImageForItem(it);
+    img.loading = 'lazy';
 
     const titleWrap=document.createElement('div');
     titleWrap.className='item-title';
@@ -385,29 +886,54 @@ function renderNpcItems(){
     strong.textContent=it;
     const meta=document.createElement('div');
     meta.className='muted';
-    meta.textContent=`${state.currentTab} • ${state.map} • ${state.npc}`;
+    meta.textContent = state.currentTab === 'Base'
+      ? tr('badge_base_material')
+      : `${state.currentTab} • ${state.map} • ${state.npc}`;
     titleWrap.appendChild(strong);
     titleWrap.appendChild(meta);
+
+    attachTooltip(img, it);
+    attachTooltip(strong, it);
+    attachTooltip(row, it);
 
     const seeBtn=document.createElement('button');
     seeBtn.className='primary seeRecipe';
     seeBtn.type='button';
     seeBtn.dataset.item=it;
-    seeBtn.textContent='Vezi rețeta';
+    seeBtn.textContent=tr('btn_see_recipe');
+
+    const usesBtn=document.createElement('button');
+    usesBtn.type='button';
+    usesBtn.className='btn small usesBtn';
+    usesBtn.dataset.item = it;
+    usesBtn.textContent = tr('btn_uses');
 
     const addBtn=document.createElement('button');
     addBtn.className='addToList';
     addBtn.type='button';
     addBtn.dataset.item=it;
-    addBtn.textContent='Adaugă';
+    addBtn.textContent=tr('btn_add');
 
-    row.appendChild(img); row.appendChild(titleWrap); row.appendChild(seeBtn); row.appendChild(addBtn);
+    const btnCol = document.createElement('div');
+    btnCol.style.display = 'flex';
+    btnCol.style.flexDirection = 'column';
+    btnCol.style.gap = '6px';
+
+    btnCol.appendChild(seeBtn);
+    btnCol.appendChild(usesBtn);
+    btnCol.appendChild(addBtn);
+
+    row.appendChild(img);
+    row.appendChild(titleWrap);
+    row.appendChild(btnCol);
+
     box.appendChild(row);
   });
 }
 
-/* ===== Evenimente ===== */
+/* ===== Evenimente globale ===== */
 $('#mapSelect').addEventListener('change', (e)=>{
+  if (state.currentTab === 'Base') return;
   state.map = e.target.value;
   const npcs = npcsFor(state.currentTab, state.map);
   state.npc = npcs[0] || '';
@@ -415,77 +941,167 @@ $('#mapSelect').addEventListener('change', (e)=>{
   renderNpc(); renderNpcItems();
 });
 $('#npcSelect').addEventListener('change', (e)=>{
+  if (state.currentTab === 'Base') return;
   state.npc = e.target.value; saveState({}); renderNpcItems();
 });
 $('#searchInput').addEventListener('input', debounce(renderNpcItems, 120));
 $('#npcItems').addEventListener('click', (e)=>{
+  const img = e.target.closest('.openDetail');
+  if(img){ openImageOverlay(img.dataset.item); return; }
   const see = e.target.closest('.seeRecipe');
   if(see){ showRecipe(see.dataset.item); return; }
+  const uses = e.target.closest('.usesBtn');
+  if(uses){ openUsesPanel(uses.dataset.item); return; }
   const add = e.target.closest('.addToList');
   if(add){ addToList(add.dataset.item, parseInt($('#qtyInput').value)||1); }
 });
 
-$('#tree').addEventListener('click', e=>{
+/* ===== Arbore: imagine NU toggl-ează <details> ===== */
+$('#tree').addEventListener('mousedown', (e)=>{
+  if (e.target.closest('.openDetail')) e.preventDefault();
+}, true);
+$('#tree').addEventListener('touchstart', (e)=>{
+  if (e.target.closest('.openDetail')) e.preventDefault();
+}, { passive:false, capture:true });
+$('#tree').addEventListener('click', (e)=>{
+  const img = e.target.closest('.openDetail');
+  if (img) {
+    e.preventDefault();
+    e.stopPropagation();
+    openImageOverlay(img.dataset.item);
+    return;
+  }
   const btn=e.target.closest('.variantBtn');
-  if(btn){ openVariantPanel(btn.dataset.item); }
+  if(btn){
+    e.preventDefault();
+    e.stopPropagation();
+    openVariantPanel(btn.dataset.item);
+  }
 });
 
-$('#expandAll').onclick=()=>{ $$('#tree details').forEach(d=>d.open=true); };
-$('#collapseAll').onclick=()=>{ $$('#tree details').forEach(d=>d.open=false); };
-$('#addToList').onclick=()=>{
-  if(!state.currentItem){ toast('Selectează întâi un item.'); return; }
-  const qty = parseInt($('#qtyInput').value)||1;
+/* ===== Controale globale (toolbar / header / listă) ===== */
+$('#expandAll').onclick = () => { $$('#tree details').forEach(d => d.open = true); };
+$('#collapseAll').onclick = () => { $$('#tree details').forEach(d => d.open = false); };
+
+$('#addToList').onclick = () => {
+  if (!state.currentItem) { toast(tr('select_item_first')); return; }
+  const qty = parseInt($('#qtyInput').value) || 1;
   addToList(state.currentItem, qty);
 };
 
-$('#exportJson').onclick=()=>{
-  if(!state.currentItem){ toast('Selectează întâi un item.'); return; }
-  const qty = parseInt($('#qtyInput').value)||1;
+$('#exportJson').onclick = () => {
+  if (!state.currentItem) { toast(tr('select_item_first')); return; }
+  const qty = parseInt($('#qtyInput').value) || 1;
   const data = buildTree(state.currentItem, qty);
   copy(JSON.stringify(data, null, 2));
 };
 
-$('#copyLink').onclick=()=>{
+$('#copyLink').onclick = () => {
   const payload = btoa(JSON.stringify(state));
   const url = new URL(window.location.href);
   url.hash = '#state=' + encodeURIComponent(payload);
   copy(url.toString());
 };
 
-$('#resetState').onclick=()=>{
+$('#resetState').onclick = () => {
   localStorage.removeItem('craft_state_v3');
-  location.hash='';
+  location.hash = '';
   location.reload();
 };
 
-$('#searchGlobal').addEventListener('keydown', (e)=>{
-  if(e.key==='Enter'){
+/* ===== Căutare globală + autocomplete ===== */
+$('#searchGlobal').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
     const q = e.target.value.trim().toLowerCase();
-    if(!q) return;
-    const names = Object.keys(DATA).filter(n=>n.toLowerCase().includes(q));
-    if(names.length){
+    if (!q) return;
+    const names = Object.keys(DATA).filter(n => n.toLowerCase().includes(q));
+    if (names.length) {
       $('#qtyInput').value = 1;
       showRecipe(names[0]);
       $('#tree').focus?.();
     } else {
-      toast('Itemul nu a fost găsit în DATA.');
+      toast(tr('search_not_found'));
     }
   }
 });
 
-/* Scurtătură: "Listă" – deschide panoul */
-$('#openList').addEventListener('click', ()=>{ openListPanel(); });
-$('#listCount').addEventListener('click', ()=>{ openListPanel(); });
-$('#listCount').addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openListPanel(); }});
+const searchBox = $('#searchGlobal');
+const suggBox = $('#searchSuggestions');
+let suggIndex = -1;
 
-/* ===== Funcții LISTĂ ===== */
+searchBox.addEventListener('input', () => {
+  const val = searchBox.value.trim().toLowerCase();
+  if (!val) { suggBox.style.display='none'; return; }
+  const matches = Object.keys(DATA).filter(n => n.toLowerCase().includes(val));
+
+  const html = matches.map(name => {
+    const info = INDEX.find(i => i.item === name);
+    const tip = info ? `${info.tab} • ${info.map} • ${info.npc}` : 'Fără informații';
+    const tipEsc = String(tip).replace(/"/g,'&quot;');
+    return `<div class="suggest-item" title="${tipEsc}">${name}</div>`;
+  }).join('');
+
+  suggBox.innerHTML = html;
+  suggBox.style.display = matches.length ? 'block' : 'none';
+  suggIndex = -1;
+});
+
+suggBox.addEventListener('click', (e) => {
+  const item = e.target.closest('.suggest-item')?.textContent;
+  if (!item) return;
+  searchBox.value = item;
+  suggBox.style.display='none';
+  $('#qtyInput').value = 1;
+  showRecipe(item);
+});
+
+searchBox.addEventListener('keydown', (e) => {
+  const items = $$('.suggest-item', suggBox);
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    suggIndex = (suggIndex + 1) % items.length;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    suggIndex = (suggIndex - 1 + items.length) % items.length;
+  } else if (e.key === 'Enter') {
+    if (suggIndex >= 0) {
+      e.preventDefault();
+      items[suggIndex].click();
+    }
+    suggBox.style.display='none';
+    return;
+  } else if (e.key === 'Escape') {
+    suggBox.style.display='none';
+    return;
+  } else return;
+  items.forEach((it,i)=>it.classList.toggle('active', i===suggIndex));
+});
+
+document.addEventListener('click', (e)=>{
+  if(!searchBox.contains(e.target) && !suggBox.contains(e.target)){
+    suggBox.style.display='none';
+  }
+});
+
+$('#openList').addEventListener('click', () => openListPanel());
+$('#listCount').addEventListener('click', () => openListPanel());
+$('#listCount').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openListPanel(); }
+});
+
+$('#qtyInput').addEventListener('input', debounce(() => {
+  if (state.currentItem) showRecipe(state.currentItem);
+}, 150));
+
+/* ===== Listă ===== */
 function updateListCount(){ $('#listCount').textContent = String(state.list?.reduce((s,i)=>s+i.qty,0) || 0); }
 function addToList(name, qty=1){
   if(!name || qty<=0) return;
   if(!Array.isArray(state.list)) state.list=[];
   const found = state.list.find(x=>x.name===name);
   if(found) found.qty += qty; else state.list.push({name, qty});
-  saveState({}); updateListCount(); toast('Adăugat în listă');
+  saveState({}); updateListCount(); toast(tr('added_to_list'));
 }
 function removeFromList(name){
   state.list = (state.list||[]).filter(x=>x.name!==name);
@@ -504,28 +1120,40 @@ function selectFromList(name){
   closeListPanel();
   $('#qtyInput').value = q;
   showRecipe(name);
-  toast('Selectat din listă');
+  toast(tr('toast_selected_from_list'));
 }
 function renderListPanel(){
   const body = $('#listBody');
   const items = state.list||[];
   body.innerHTML='';
-  if(!items.length){ body.innerHTML = '<div class="empty">Lista este goală.</div>'; return; }
+  if(!items.length){ body.innerHTML = `<div class="empty">${tr('list_empty')}</div>`; return; }
   items.forEach(it=>{
     const row=document.createElement('div'); row.className='item';
 
+    const img=document.createElement('img');
+    img.className='item-img openDetail';
+    img.dataset.item = it.name;
+    img.style.cursor = 'zoom-in';
+    img.alt = it.name;
+    img.src = getImageForItem(it.name);
+    img.loading = 'lazy';
+
     const title=document.createElement('div'); title.className='item-title';
-    title.innerHTML = `<strong>${it.name}</strong><div class="muted">Cantitate: ×${fmtQty(it.qty)}</div>`;
+    title.innerHTML = `<strong>${it.name}</strong><div class="muted">${trf('list_qty_label',{qty: fmtQty(it.qty)})}</div>`;
 
     const controls=document.createElement('div'); controls.style.display='flex'; controls.style.gap='6px';
-    const minus=document.createElement('button'); minus.type='button'; minus.textContent='–'; minus.title='Scade 1'; minus.onclick=()=>changeQty(it.name,-1);
-    const plus=document.createElement('button'); plus.type='button'; plus.textContent='+'; plus.title='Adaugă 1'; plus.onclick=()=>changeQty(it.name,1);
-    const choose=document.createElement('button'); choose.type='button'; choose.className='primary'; choose.textContent='Alege'; choose.title='Arată rețeta pentru acest item'; choose.onclick=()=>selectFromList(it.name);
-    const rm=document.createElement('button'); rm.type='button'; rm.textContent='Șterge'; rm.title='Șterge din listă'; rm.onclick=()=>removeFromList(it.name);
+    const minus=document.createElement('button'); minus.type='button'; minus.textContent='–'; minus.title=tr('list_btn_minus_title'); minus.onclick=()=>changeQty(it.name,-1);
+    const plus=document.createElement('button'); plus.type='button'; plus.textContent='+'; plus.title=tr('list_btn_plus_title'); plus.onclick=()=>changeQty(it.name,1);
+    const choose=document.createElement('button'); choose.type='button'; choose.className='primary'; choose.textContent=tr('btn_choose'); choose.title=tr('list_btn_choose_title'); choose.onclick=()=>selectFromList(it.name);
+    const rm=document.createElement('button'); rm.type='button'; rm.textContent=tr('btn_delete'); rm.title=tr('list_btn_delete_title'); rm.onclick=()=>removeFromList(it.name);
 
     controls.appendChild(minus); controls.appendChild(plus); controls.appendChild(choose); controls.appendChild(rm);
 
-    row.appendChild(title); row.appendChild(controls);
+    attachTooltip(img, it.name);
+    attachTooltip(title, it.name);
+    attachTooltip(row, it.name);
+
+    row.appendChild(img); row.appendChild(title); row.appendChild(controls);
     body.appendChild(row);
   });
 }
@@ -550,31 +1178,14 @@ window.addEventListener('load', ()=>{
   renderTabs(); renderMap(); renderNpc(); renderNpcItems(); updateListCount();
 
   if(state.currentItem) showRecipe(state.currentItem);
+
+  const langSelect = $('#langSelect');
+  if (langSelect){
+    langSelect.value = currentLang;
+    langSelect.addEventListener('change', (e)=> applyLanguage(e.target.value));
+  }
+  applyLanguage(currentLang);
 });
-
-/* Mic quality-of-life: schimbarea cantității regenerează instant arborele curent */
-$('#qtyInput').addEventListener('input', debounce(()=>{
-  if(state.currentItem) showRecipe(state.currentItem);
-}, 150));
-
-/* ===== Teste de bază (în consolă) ===== */
-(function tests(){
-  try{
-    console.assert(Array.isArray(buildIndex()), 'buildIndex returnează un array');
-    const t=buildTree('Infinite Dark Soul Costume (F)',1);
-    console.assert(t && t.label==='Infinite Dark Soul Costume (F)', 'buildTree: root label corect');
-    const sums=aggregateBaseMaterials(t);
-    console.assert(sums instanceof Map, 'aggregateBaseMaterials returnează Map');
-    console.assert(countNodes(t)>=1, 'countNodes >= 1');
-
-    // Teste suplimentare pentru listă
-    addToList('X',2); console.assert((state.list||[]).find(i=>i.name==='X')?.qty===2,'addToList adaugă');
-    addToList('X',3); console.assert((state.list||[]).find(i=>i.name==='X')?.qty===5,'addToList cumulează');
-    changeQty('X',-10); console.assert((state.list||[]).find(i=>i.name==='X')?.qty===1,'changeQty nu scade sub 1');
-    changeQty('X',+4); console.assert((state.list||[]).find(i=>i.name==='X')?.qty===5,'changeQty crește');
-    removeFromList('X'); console.assert(!(state.list||[]).find(i=>i.name==='X'),'removeFromList elimină');
-  }catch(err){ console.warn('Teste eșuate:', err); }
-})();
 </script>
 </body>
 </html>
